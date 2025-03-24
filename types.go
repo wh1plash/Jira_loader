@@ -5,6 +5,26 @@ import (
 	"time"
 )
 
+type GetTokenRequest struct {
+	UserName string `json:"username"`
+	Pass     string `json:"password"`
+	Project  string `json:"project"`
+}
+
+type GetTokenResponse struct {
+	Token string `json:"access_token"`
+	TTL   int    `json:"expires_in"`
+}
+
+type LoadOrderRequest struct {
+}
+
+type LoadOrderResponse struct {
+	TotalRow int `json:"totalRow"`
+	SavedRow int `json:"savedRow"`
+	ErrorRow int `json:"errorRow"`
+}
+
 type Status struct {
 	Name string `json:"name"`
 }
@@ -28,7 +48,8 @@ type Task struct {
 	Self   string `json:"self"`
 	Key    string `json:"key"`
 	Fields struct {
-		Attachment []struct {
+		Description string `json:"description"`
+		Attachment  []struct {
 			FileName string `json:"filename"`
 			Content  string `json:"content"`
 		} `json:"attachment"`

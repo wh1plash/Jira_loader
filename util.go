@@ -9,9 +9,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func seveOrderFile(b []byte, fileName string) (string, error) {
+func seveOrderFile(b []byte, fileName string, taskID string) (string, error) {
 	currentDate := time.Now().Format("2006-01-02")
-	dir := filepath.Join("./downloads", currentDate)
+	dir := filepath.Join("./downloads", currentDate, taskID)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		log.Fatal("error to create folder to download order", err)
 	}

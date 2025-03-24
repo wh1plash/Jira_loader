@@ -13,7 +13,8 @@ func init() {
 }
 
 func runFetcher(client *HTTPClient, sigch chan os.Signal) {
-	transitionID := os.Getenv("transitionID")
+	transitionWaitID := os.Getenv("transitionWaitID")
+	queues := client.GetQueues(os.Getenv("queueUrl"))
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -21,22 +22,28 @@ loop:
 	for {
 		select {
 		case <-sigch:
-			fmt.Println("Stopping Jira fetcher")
 			break loop
 		case <-ticker.C:
-			queues := client.GetQueues(os.Getenv("queueUrl"))
 			tasks := task(queues)
-
 			for _, i := range tasks {
 				t := client.GetTask(i)
-				client.setStatus(t.Self, transitionID)
-				client.addComment(t.Self)
+
+				//orderFile := client.GetTaskDescription(t.Self)
 				for _, a := range t.Fields.Attachment {
-					client.GetAttachment(a.FileName, a.Content)
+					orderFile := client.GetAttachment(a.FileName, a.Content, t.Key)
+					resp := client.loadOrder(orderFile)
+					fmt.Println(resp)
 				}
+				client.setStatus(t.Self, transitionWaitID)
+				client.addComment(t.Self)
+
+				//token := client.GetLoaderToken()
+				//fmt.Println("Token:", token)
+
 			}
 		}
 	}
+	//https://jira.symboltransport.com/rest/api/2/issue/PER-3
 }
 
 func main() {
