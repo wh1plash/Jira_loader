@@ -13,9 +13,11 @@ func init() {
 }
 
 func runFetcher(client *HTTPClient, sigch chan os.Signal) {
-	transitionWaitID := os.Getenv("transitionWaitID")
-	queues := client.GetQueues(os.Getenv("queueUrl"))
-	ticker := time.NewTicker(5 * time.Second)
+	var (
+		transitionWaitID = os.Getenv("TRANSITION_WAIT_ID")
+		transitionDoneID = os.Getenv("TRANSITION_DONE_ID")
+		ticker           = time.NewTicker(5 * time.Second)
+	)
 	defer ticker.Stop()
 
 loop:
@@ -24,21 +26,19 @@ loop:
 		case <-sigch:
 			break loop
 		case <-ticker.C:
+			queues := client.GetQueues(os.Getenv("QUEUE_URL"))
 			tasks := task(queues)
 			for _, i := range tasks {
 				t := client.GetTask(i)
-
+				client.setStatus(t.Self, transitionWaitID)
+				client.addComment(t.Self)
 				//orderFile := client.GetTaskDescription(t.Self)
 				for _, a := range t.Fields.Attachment {
 					orderFile := client.GetAttachment(a.FileName, a.Content, t.Key)
-					resp := client.loadOrder(orderFile)
-					fmt.Println(resp)
+					result := client.loadOrder(orderFile)
+					client.addCommentWithResult(t.Self, result)
 				}
-				client.setStatus(t.Self, transitionWaitID)
-				client.addComment(t.Self)
-
-				//token := client.GetLoaderToken()
-				//fmt.Println("Token:", token)
+				client.setStatus(t.Self, transitionDoneID)
 
 			}
 		}
@@ -47,7 +47,7 @@ loop:
 }
 
 func main() {
-	baseurl := os.Getenv("baseUrl")
+	baseurl := os.Getenv("BASE_URL")
 	client := NewHTTPClient(baseurl)
 
 	sigch := make(chan os.Signal, 1)

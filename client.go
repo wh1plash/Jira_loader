@@ -19,22 +19,6 @@ func NewHTTPClient(url string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) setStatus(taskUrl string, statusID string) {
-	url := fmt.Sprintf("%s/transitions", taskUrl)
-	body := map[string]any{
-		"transition": map[string]string{
-			"id": statusID},
-	}
-	jsonBody, _ := json.Marshal(body)
-
-	resp, err := c.doRequest("POST", url, bytes.NewReader(jsonBody))
-	if err != nil {
-		fmt.Println("can`t change status", err)
-	}
-	defer resp.Body.Close()
-
-}
-
 func (c *HTTPClient) getLoaderToken() (string, error) {
 	url := fmt.Sprintf("%s/%s", os.Getenv("LOADORDER_BASE_URL"), os.Getenv("LOADORDER_TOKEN_ROUTE"))
 	req := GetTokenRequest{
@@ -75,13 +59,11 @@ func (c *HTTPClient) loadOrder(fileName string) LoadOrderResponse {
 	defer resp.Body.Close()
 	fmt.Println("Response", resp)
 
-	// if resp.StatusCode != http.StatusOK {
-	// 	log.Fatal("can`t load csv file", err)
-	// }
+	if resp.StatusCode != http.StatusOK {
+		log.Fatal("can`t load file", err)
+	}
 
 	responseBody, _ := io.ReadAll(resp.Body)
-
-	fmt.Println("----------ResponseBody", string(responseBody))
 
 	var result LoadOrderResponse
 	err = json.Unmarshal(responseBody, &result)
@@ -89,9 +71,23 @@ func (c *HTTPClient) loadOrder(fileName string) LoadOrderResponse {
 		fmt.Println("error to unmarshal body from response", err)
 	}
 
-	fmt.Printf("RESULT: %+v\n", result)
-
 	return result
+
+}
+
+func (c *HTTPClient) setStatus(taskUrl string, statusID string) {
+	url := fmt.Sprintf("%s/transitions", taskUrl)
+	body := map[string]any{
+		"transition": map[string]string{
+			"id": statusID},
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	resp, err := c.doRequest("POST", url, bytes.NewReader(jsonBody))
+	if err != nil {
+		fmt.Println("can`t change status", err)
+	}
+	defer resp.Body.Close()
 
 }
 
@@ -107,6 +103,21 @@ func (c *HTTPClient) addComment(taskUrl string) {
 	}
 	defer resp.Body.Close()
 
+}
+
+func (c *HTTPClient) addCommentWithResult(taskUrl string, result LoadOrderResponse) {
+	comment := fmt.Sprintf("Result of Order Load:\ntotalRow: %d\nsavedRow: %d\nerrorRow: %d", result.TotalRow, result.SavedRow, result.ErrorRow)
+	body := map[string]string{"body": comment}
+	url := fmt.Sprintf("%s/comment", taskUrl)
+
+	jsonBody, _ := json.Marshal(body)
+
+	resp, err := c.doRequest("POST", url, bytes.NewReader(jsonBody))
+	if err != nil {
+		fmt.Println("can`t add new comment", err)
+	}
+
+	defer resp.Body.Close()
 }
 
 func (c *HTTPClient) GetAttachment(fileName string, content string, taskID string) string {
@@ -195,7 +206,7 @@ func (c *HTTPClient) doRequest(method string, url string, body io.Reader) (*http
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(headerKey, headerVal)
-	req.SetBasicAuth(os.Getenv("user"), os.Getenv("pass"))
+	req.SetBasicAuth(os.Getenv("JIRA_USER"), os.Getenv("JIRA_PASS"))
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -240,8 +251,6 @@ func (c *HTTPClient) doRequestWithJWT(method string, url string, jwt string, fil
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
 
-	fmt.Println("Request before sending", req)
-
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -257,7 +266,6 @@ func (c *HTTPClient) GetQueues(addUrl string) Queue {
 	if err != nil {
 		log.Fatal("error to get Queues", err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
