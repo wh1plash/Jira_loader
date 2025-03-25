@@ -43,7 +43,6 @@ loop:
 			}
 		}
 	}
-	//https://jira.symboltransport.com/rest/api/2/issue/PER-3
 }
 
 func main() {

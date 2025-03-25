@@ -196,13 +196,15 @@ func (c *HTTPClient) GetTask(taskUrl string) Task {
 }
 
 func (c *HTTPClient) doRequest(method string, url string, body io.Reader) (*http.Response, error) {
+	var (
+		headerKey = "X-ExperimentalApi"
+		headerVal = "opt-in"
+	)
+
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
-
-	headerKey := "X-ExperimentalApi"
-	headerVal := "opt-in"
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(headerKey, headerVal)
@@ -239,8 +241,6 @@ func (c *HTTPClient) doRequestWithJWT(method string, url string, jwt string, fil
 	if err := writer.Close(); err != nil {
 		return nil, fmt.Errorf("error closing writer: %w", err)
 	}
-
-	//fmt.Printf("-=-----%+v\n", body)
 
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
