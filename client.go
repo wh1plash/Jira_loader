@@ -10,6 +10,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 func NewHTTPClient(url string) *HTTPClient {
@@ -19,7 +23,8 @@ func NewHTTPClient(url string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) getLoaderToken() (string, error) {
+func (c *HTTPClient) getLoaderToken() error {
+	var token LoaderToken
 	url := fmt.Sprintf("%s/%s", os.Getenv("LOADORDER_BASE_URL"), os.Getenv("LOADORDER_TOKEN_ROUTE"))
 	req := GetTokenRequest{
 		UserName: os.Getenv("LOADER_USER"),
@@ -29,7 +34,7 @@ func (c *HTTPClient) getLoaderToken() (string, error) {
 	jsonBody, _ := json.Marshal(req)
 	resp, err := c.doRequest("POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -39,23 +44,37 @@ func (c *HTTPClient) getLoaderToken() (string, error) {
 
 	body, err := io.ReadAll(resp.Body)
 
-	var token GetTokenResponse
 	if err := json.Unmarshal(body, &token); err != nil {
 		fmt.Println("error to unmarshal body:", err)
 	}
 
-	return token.Token, nil
+	tokenWithClaims, _, err := new(jwt.Parser).ParseUnverified(token.Token, &TokenClaims{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if claims, ok := tokenWithClaims.Claims.(*TokenClaims); ok {
+		token.Exp = claims.Exp
+	}
+
+	c.token = token
+	return nil
 }
 
 func (c *HTTPClient) loadOrder(fileName string) LoadOrderResponse {
-	jwt, err := c.getLoaderToken()
-	if err != nil {
-		log.Fatal("error to get jwt token", err)
+	fmt.Printf("Client is: %+v\n", c)
+
+	if c.token.Exp < time.Now().Unix() {
+		fmt.Println("Token is expired, get new")
+		err := c.getLoaderToken()
+		if err != nil {
+			log.Fatal("error to get jwt token", err)
+		}
 	}
 
 	url := fmt.Sprintf("%s/%s", os.Getenv("LOADORDER_BASE_URL"), os.Getenv("LOADORDER_UPLOAD_ROUTE"))
 
-	resp, err := c.doRequestWithJWT("POST", url, jwt, fileName)
+	resp, err := c.doRequestWithJWT("POST", url, c.token, fileName)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -223,7 +242,7 @@ func (c *HTTPClient) doRequest(method string, url string, body io.Reader) (*http
 	return resp, nil
 }
 
-func (c *HTTPClient) doRequestWithJWT(method string, url string, jwt string, fileName string) (*http.Response, error) {
+func (c *HTTPClient) doRequestWithJWT(method string, url string, jwt LoaderToken, fileName string) (*http.Response, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)
@@ -251,8 +270,8 @@ func (c *HTTPClient) doRequestWithJWT(method string, url string, jwt string, fil
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
-
-	req.Header.Set("Authorization", "Bearer "+jwt)
+	bearerToken := strings.Join([]string{jwt.Type, jwt.Token}, " ")
+	req.Header.Set("Authorization", bearerToken)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
 

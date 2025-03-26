@@ -2,7 +2,8 @@ package main
 
 import (
 	"net/http"
-	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type GetTokenRequest struct {
@@ -11,12 +12,15 @@ type GetTokenRequest struct {
 	Project  string `json:"project"`
 }
 
-type GetTokenResponse struct {
+type LoaderToken struct {
 	Token string `json:"access_token"`
-	TTL   int    `json:"expires_in"`
+	Type  string `json:"token_type"`
+	Exp   int64  `json:"exp"`
 }
 
-type LoadOrderRequest struct {
+type TokenClaims struct {
+	Exp int64 `json:"exp"`
+	jwt.RegisteredClaims
 }
 
 type LoadOrderResponse struct {
@@ -63,14 +67,5 @@ type Task struct {
 type HTTPClient struct {
 	client  *http.Client
 	baseUrl string
-}
-
-type Order struct {
-	Type      string
-	Count     int
-	Region    int
-	ProjectID int
-	SerialNum int
-	DateTo    time.Time
-	Serie     int
+	token   LoaderToken
 }
