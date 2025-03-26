@@ -13,10 +13,11 @@ func init() {
 }
 
 func runFetcher(client *HTTPClient, sigch chan os.Signal) {
+
 	var (
 		transitionWaitID = os.Getenv("TRANSITION_WAIT_ID")
 		transitionDoneID = os.Getenv("TRANSITION_DONE_ID")
-		ticker           = time.NewTicker(5 * time.Second)
+		ticker           = time.NewTicker(getTickerInterval())
 	)
 	defer ticker.Stop()
 

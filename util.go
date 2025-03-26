@@ -47,3 +47,16 @@ func mustLoadEnvVariables() {
 		log.Fatal("Error loading .env file")
 	}
 }
+
+func getTickerInterval() time.Duration {
+	intervalStr := os.Getenv("TICKER_INTERVAL")
+	if intervalStr == "" {
+		intervalStr = "10s"
+	}
+
+	interval, err := time.ParseDuration(intervalStr)
+	if err != nil {
+		log.Fatal("Error to set ticker interval")
+	}
+	return interval
+}
