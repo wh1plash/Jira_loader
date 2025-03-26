@@ -25,6 +25,10 @@ type LoadOrderResponse struct {
 	ErrorRow int `json:"errorRow"`
 }
 
+type JiraComment struct {
+	Body string `json:"body"`
+}
+
 type Status struct {
 	Name string `json:"name"`
 }

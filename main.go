@@ -16,7 +16,7 @@ func runFetcher(client *HTTPClient, sigch chan os.Signal) {
 	var (
 		transitionWaitID = os.Getenv("TRANSITION_WAIT_ID")
 		transitionDoneID = os.Getenv("TRANSITION_DONE_ID")
-		ticker           = time.NewTicker(5 * time.Minute)
+		ticker           = time.NewTicker(5 * time.Second)
 	)
 	defer ticker.Stop()
 
@@ -36,7 +36,9 @@ loop:
 				for _, a := range t.Fields.Attachment {
 					orderFile := client.GetAttachment(a.FileName, a.Content, t.Key)
 					result := client.loadOrder(orderFile)
-					client.addCommentWithResult(t.Self, result)
+					if err := client.addCommentWithResult(t.Self, result); err != nil {
+						fmt.Println("error to add comment of result of load order to Jira issue:", err)
+					}
 				}
 				client.setStatus(t.Self, transitionDoneID)
 

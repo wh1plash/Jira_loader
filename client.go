@@ -57,7 +57,6 @@ func (c *HTTPClient) loadOrder(fileName string) LoadOrderResponse {
 
 	resp, err := c.doRequestWithJWT("POST", url, jwt, fileName)
 	defer resp.Body.Close()
-	fmt.Println("Response", resp)
 
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal("can`t load file", err)
@@ -71,8 +70,8 @@ func (c *HTTPClient) loadOrder(fileName string) LoadOrderResponse {
 		fmt.Println("error to unmarshal body from response", err)
 	}
 
+	fmt.Printf("Loader result: %+v\n", result)
 	return result
-
 }
 
 func (c *HTTPClient) setStatus(taskUrl string, statusID string) {
@@ -105,19 +104,25 @@ func (c *HTTPClient) addComment(taskUrl string) {
 
 }
 
-func (c *HTTPClient) addCommentWithResult(taskUrl string, result LoadOrderResponse) {
-	comment := fmt.Sprintf("Result of Order Load:\ntotalRow: %d\nsavedRow: %d\nerrorRow: %d", result.TotalRow, result.SavedRow, result.ErrorRow)
-	body := map[string]string{"body": comment}
+func (c *HTTPClient) addCommentWithResult(taskUrl string, result LoadOrderResponse) error {
+	responseJson, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	comment := JiraComment{Body: fmt.Sprintf("Load Order Response:\n%s\n", string(responseJson))}
 	url := fmt.Sprintf("%s/comment", taskUrl)
 
-	jsonBody, _ := json.Marshal(body)
+	jsonBody, err := json.Marshal(comment)
+	if err != nil {
+		return err
+	}
 
 	resp, err := c.doRequest("POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		fmt.Println("can`t add new comment", err)
 	}
-
 	defer resp.Body.Close()
+	return nil
 }
 
 func (c *HTTPClient) GetAttachment(fileName string, content string, taskID string) string {
