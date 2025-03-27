@@ -15,9 +15,10 @@ func init() {
 func runFetcher(client *HTTPClient, sigch chan os.Signal) {
 
 	var (
-		transitionWaitID = os.Getenv("TRANSITION_WAIT_ID")
-		transitionDoneID = os.Getenv("TRANSITION_DONE_ID")
-		ticker           = time.NewTicker(getTickerInterval())
+		transitionWaitID  = os.Getenv("TRANSITION_WAIT_ID")
+		transitionDoneID  = os.Getenv("TRANSITION_DONE_ID")
+		ticker            = time.NewTicker(getTickerInterval())
+		waitStatusComment = os.Getenv("WAITSTATUS_COMMENT")
 	)
 	defer ticker.Stop()
 
@@ -32,7 +33,7 @@ loop:
 			for _, i := range tasks {
 				t := client.GetTask(i)
 				client.setStatus(t.Self, transitionWaitID)
-				client.addComment(t.Self)
+				client.addComment(t.Self, waitStatusComment)
 				//orderFile := client.GetTaskDescription(t.Self)
 				for _, a := range t.Fields.Attachment {
 					orderFile := client.GetAttachment(a.FileName, a.Content, t.Key)
